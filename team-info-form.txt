@@ -1,0 +1,28 @@
+Please choose one of the options below, fill in the requested
+information, and then submit this form for the Team Information
+Assignment. 
+
+--------------------------------------------------------------
+A) I request the following team:
+
+   YOUR NAME: 
+   TEAMMATE'S NAME:
+   (or answer SOLO if you prefer to work alone)
+
+   NAME FOR YOUR TEAM:
+--------------------------------------------------------------
+
+OR 
+
+--------------------------------------------------------------
+B) I would like to have a teammate assigned to me. 
+
+   YOUR NAME: 
+   DO YOU PREFER PROGRAMMING IN PYTHON, JAVA, OR ARE BOTH OK?
+
+If you choose option B, we will do our best to pair people who have
+a compatible programming language preference, but we can't guarantee
+that this will be possible.
+--------------------------------------------------------------
+
+
