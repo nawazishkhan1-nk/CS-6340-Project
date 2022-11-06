@@ -30,6 +30,16 @@ DEVICE="cuda"
 CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
+
+def whitespace_tokenize(text):
+    """Runs basic whitespace cleaning and splitting on a piece of text."""
+    text = text.strip()
+    if not text:
+        return []
+    tokens = text.split()
+    return tokens
+
+
 class SquadExample(object):
     """
     Question answer Pair, formatted like SQuAD
@@ -764,7 +774,7 @@ def main(train_file, predict_file=None, do_train=True, do_predict=False):
     gradient_accumulation_steps = 1 # Number of updates steps to accumulate before performing a backward/update pass.
     do_lower_case = True
     null_score_diff_threshold = 0.0 # If null_score - best_non_null is greater than the threshold predict null.
-    device = torch.device(('cuda:0') if torch.cuda.is_available() else "cpu")
+    device = torch.device(('cuda') if torch.cuda.is_available() else "cpu")
     n_gpu = torch.cuda.device_count()
     # # Multiple GPUS
     # torch.cuda.set_device(local_rank)
@@ -894,12 +904,18 @@ def main(train_file, predict_file=None, do_train=True, do_predict=False):
             f.write(model_to_save.config.to_json_string())
 
         # Load a trained model and config that you have fine-tuned
-        model = create_model(args, device, output_config_file, output_model_file)
+        print('loading the trained model')
+        config_ = AutoConfig(output_config_file)
+        model = AutoModel.from_pretrained("bert-base-uncased", config=config_)
+        model.load_state_dict(torch.load(output_model_file, map_location=device))
 
     else:
         output_model_file = os.path.join(output_dir, WEIGHTS_NAME)
         output_config_file = os.path.join(output_dir, CONFIG_NAME)
-        model = create_model(args, device, output_config_file, output_model_file)
+        print('loading the trained model in eval mode')
+        config_ = AutoConfig(output_config_file)
+        model = AutoModel.from_pretrained("bert-base-uncased", config=config_)
+        model.load_state_dict(torch.load(output_model_file, map_location=device))
 
     model.to(device)
 
