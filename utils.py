@@ -6,7 +6,7 @@ import logging
 import os
 import queue
 import shutil
-# import torch
+import torch
 
 def train_eval_split(path_dir):
     all_files = glob.glob(f'{path_dir}/*.story')
@@ -43,7 +43,7 @@ def get_story(story_path):
     context = " ".join(all_lines[4:])
     return title, context
 
-def get_question_answer_pairs(path_dir, story_id, context):
+def get_question_answer_pairs(path_dir, story_id, context, f_type):
     q_file = f'{path_dir}/{story_id}.questions'
     a_file = f'{path_dir}/{story_id}.answers'
     with open(q_file, 'r') as f:
@@ -95,7 +95,10 @@ def get_question_answer_pairs(path_dir, story_id, context):
                     continue
                 else:
                     ans_ar.append(ans_dict)
-        cur_dict['answers'] = ans_ar
+        if f_type == 'train':
+            cur_dict['answers'] = [ans_ar[0]]
+        else:
+            cur_dict['answers'] = ans_ar
         if ans_ar[0]['answer_start'] == -1:
              # only 4 such cases, remove for sake of simplicity 521 -> 517 questions finally
             continue
@@ -115,7 +118,7 @@ def create_data_json(path_dir, f_type='train'):
         story_dict['title'] = story_name
         questions_dict = {}
         questions_dict['context'] = context_line
-        questions_dict['qas'] = get_question_answer_pairs(path_dir, story_id, context_line)
+        questions_dict['qas'] = get_question_answer_pairs(path_dir, story_id, context_line, f_type)
         story_dict['paragraphs'] = [questions_dict]
         json_data.append(story_dict)
     json_file['data'] = json_data
@@ -126,105 +129,105 @@ def create_data_json(path_dir, f_type='train'):
 
 
 
-# class CheckpointSaver:
-#     # From hugging face 
-#     """Class to save and load model checkpoints.
-#     Save the best checkpoints as measured by a metric value passed into the
-#     `save` method. Overwrite checkpoints with better checkpoints once
-#     `max_checkpoints` have been saved.
-#     Args:
-#         save_dir (str): Directory to save checkpoints.
-#         max_checkpoints (int): Maximum number of checkpoints to keep before
-#             overwriting old ones.
-#         metric_name (str): Name of metric used to determine best model.
-#         maximize_metric (bool): If true, best checkpoint is that which maximizes
-#             the metric value passed in via `save`. Otherwise, best checkpoint
-#             minimizes the metric.
-#         log (logging.Logger): Optional logger for printing information.
-#     """
-#     def __init__(self, save_dir, max_checkpoints, metric_name,
-#                  maximize_metric=False, log=None):
-#         super(CheckpointSaver, self).__init__()
+class CheckpointSaver:
+    # From hugging face 
+    """Class to save and load model checkpoints.
+    Save the best checkpoints as measured by a metric value passed into the
+    `save` method. Overwrite checkpoints with better checkpoints once
+    `max_checkpoints` have been saved.
+    Args:
+        save_dir (str): Directory to save checkpoints.
+        max_checkpoints (int): Maximum number of checkpoints to keep before
+            overwriting old ones.
+        metric_name (str): Name of metric used to determine best model.
+        maximize_metric (bool): If true, best checkpoint is that which maximizes
+            the metric value passed in via `save`. Otherwise, best checkpoint
+            minimizes the metric.
+        log (logging.Logger): Optional logger for printing information.
+    """
+    def __init__(self, save_dir, max_checkpoints, metric_name,
+                 maximize_metric=False, log=None):
+        super(CheckpointSaver, self).__init__()
 
-#         self.save_dir = save_dir
-#         self.max_checkpoints = max_checkpoints
-#         self.metric_name = metric_name
-#         self.maximize_metric = maximize_metric
-#         self.best_val = None
-#         self.ckpt_paths = queue.PriorityQueue()
-#         self.log = log
-#         self._print('Saver will {}imize {}...'
-#                     .format('max' if maximize_metric else 'min', metric_name))
+        self.save_dir = save_dir
+        self.max_checkpoints = max_checkpoints
+        self.metric_name = metric_name
+        self.maximize_metric = maximize_metric
+        self.best_val = None
+        self.ckpt_paths = queue.PriorityQueue()
+        self.log = log
+        self._print('Saver will {}imize {}...'
+                    .format('max' if maximize_metric else 'min', metric_name))
 
-#     def is_best(self, metric_val):
-#         """Check whether `metric_val` is the best seen so far.
-#         Args:
-#             metric_val (float): Metric value to compare to prior checkpoints.
-#         """
-#         if metric_val is None:
-#             # No metric reported
-#             return False
+    def is_best(self, metric_val):
+        """Check whether `metric_val` is the best seen so far.
+        Args:
+            metric_val (float): Metric value to compare to prior checkpoints.
+        """
+        if metric_val is None:
+            # No metric reported
+            return False
 
-#         if self.best_val is None:
-#             # No checkpoint saved yet
-#             return True
+        if self.best_val is None:
+            # No checkpoint saved yet
+            return True
 
-#         return ((self.maximize_metric and self.best_val < metric_val)
-#                 or (not self.maximize_metric and self.best_val > metric_val))
+        return ((self.maximize_metric and self.best_val < metric_val)
+                or (not self.maximize_metric and self.best_val > metric_val))
 
-#     def _print(self, message):
-#         """Print a message if logging is enabled."""
-#         if self.log is not None:
-#             self.log.info(message)
+    def _print(self, message):
+        """Print a message if logging is enabled."""
+        if self.log is not None:
+            self.log.info(message)
 
-#     def save(self, step, model, metric_val, device):
-#         """Save model parameters to disk.
-#         Args:
-#             step (int): Total number of examples seen during training so far.
-#             model (torch.nn.DataParallel): Model to save.
-#             metric_val (float): Determines whether checkpoint is best so far.
-#             device (torch.device): Device where model resides.
-#         """
-#         ckpt_dict = {
-#             'model_name': model.__class__.__name__,
-#             'model_state': model.cpu().state_dict(),
-#             'step': step
-#         }
-#         model.to(device)
+    def save(self, step, model, metric_val, device):
+        """Save model parameters to disk.
+        Args:
+            step (int): Total number of examples seen during training so far.
+            model (torch.nn.DataParallel): Model to save.
+            metric_val (float): Determines whether checkpoint is best so far.
+            device (torch.device): Device where model resides.
+        """
+        ckpt_dict = {
+            'model_name': model.__class__.__name__,
+            'model_state': model.cpu().state_dict(),
+            'step': step
+        }
+        model.to(device)
 
-#         checkpoint_path = os.path.join(self.save_dir,
-#                                        'step_{}.pth.tar'.format(step))
-#         torch.save(ckpt_dict, checkpoint_path)
-#         self._print('Saved checkpoint: {}'.format(checkpoint_path))
+        checkpoint_path = os.path.join(self.save_dir,
+                                       'step_{}.pth.tar'.format(step))
+        torch.save(ckpt_dict, checkpoint_path)
+        self._print('Saved checkpoint: {}'.format(checkpoint_path))
 
-#         if self.is_best(metric_val):
-#             # Save the best model
-#             self.best_val = metric_val
-#             best_path = os.path.join(self.save_dir, 'best.pth.tar')
-#             shutil.copy(checkpoint_path, best_path)
-#             self._print('New best checkpoint at step {}...'.format(step))
+        if self.is_best(metric_val):
+            # Save the best model
+            self.best_val = metric_val
+            best_path = os.path.join(self.save_dir, 'best.pth.tar')
+            shutil.copy(checkpoint_path, best_path)
+            self._print('New best checkpoint at step {}...'.format(step))
 
-#         # Add checkpoint path to priority queue (lowest priority removed first)
-#         if self.maximize_metric:
-#             priority_order = metric_val
-#         else:
-#             priority_order = -metric_val
+        # Add checkpoint path to priority queue (lowest priority removed first)
+        if self.maximize_metric:
+            priority_order = metric_val
+        else:
+            priority_order = -metric_val
 
-#         self.ckpt_paths.put((priority_order, checkpoint_path))
+        self.ckpt_paths.put((priority_order, checkpoint_path))
 
-#         # Remove a checkpoint if more than max_checkpoints have been saved
-#         if self.ckpt_paths.qsize() > self.max_checkpoints:
-#             _, worst_ckpt = self.ckpt_paths.get()
-#             try:
-#                 os.remove(worst_ckpt)
-#                 self._print('Removed checkpoint: {}'.format(worst_ckpt))
-#             except OSError:
-#                 # Avoid crashing if checkpoint has been removed or protected
-#                 pass
+        # Remove a checkpoint if more than max_checkpoints have been saved
+        if self.ckpt_paths.qsize() > self.max_checkpoints:
+            _, worst_ckpt = self.ckpt_paths.get()
+            try:
+                os.remove(worst_ckpt)
+                self._print('Removed checkpoint: {}'.format(worst_ckpt))
+            except OSError:
+                # Avoid crashing if checkpoint has been removed or protected
+                pass
    
 # create_train_json('./devset-official')
 
-train_eval_split('./devset-official')
-create_data_json('./data/train', 'train')
-create_data_json('./data/eval', 'eval')
+# train_eval_split('./devset-official')
+# create_data_json('./data/train', 'train')
+# create_data_json('./data/eval', 'eval')
 

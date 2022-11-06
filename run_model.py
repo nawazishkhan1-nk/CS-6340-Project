@@ -148,7 +148,10 @@ def read_squad_examples(input_file, is_training, version_2_with_negative=False):
                         answer_offset = answer["answer_start"]
                         answer_length = len(orig_answer_text)
                         start_position = char_to_word_offset[answer_offset]
-                        end_position = char_to_word_offset[answer_offset + answer_length - 1]
+                        if (answer_offset + answer_length - 1) > (len(char_to_word_offset)-1):
+                            end_position = char_to_word_offset[-1]
+                        else:
+                            end_position = char_to_word_offset[answer_offset + answer_length - 1]
                         # Only add answers where the text can be exactly recovered from the
                         # document. If this CAN'T happen it's likely due to weird Unicode
                         # stuff so we will just skip the example.
@@ -709,9 +712,6 @@ def prep_eval_features( eval_file,tokenizer, max_seq_length, doc_stride,max_quer
 
     return eval_examples,eval_features, eval_data
 
-def run_model(train=True):
-    pass
-
 def evaluate(model, device, eval_examples,eval_features,eval_data,output_dir,ep,step,predict_batch_size=8):
 
     # Run prediction for full data
@@ -750,7 +750,7 @@ def evaluate(model, device, eval_examples,eval_features,eval_data,output_dir,ep,
                      True, 0.0)
     return all_results
 
-def main(train_file, predict_file=None, do_train=True, do_predict=False):
+def run_model(train_file, predict_file=None, do_train=True, do_predict=False):
     output_dir = f'./output_dir/'
     if os.path.exists(output_dir) and os.listdir(output_dir) and do_train:
         raise ValueError("Output directory () already exists and is not empty.")
@@ -761,9 +761,9 @@ def main(train_file, predict_file=None, do_train=True, do_predict=False):
     max_seq_length = 384
     doc_stride = 128
     max_query_length = 64 # For Questions
-    train_batch_size = 32 # TODO: set lower optimum value
-    predict_batch_size = 8 # TODO: set lower
-    learning_rate = 5e-5
+    train_batch_size = 12 # TODO: set lower optimum value
+    predict_batch_size = 4 # TODO: set lower
+    learning_rate = 3e-5
     num_train_epochs = 3.
     warmup_proportion  = 0.1
     n_best_size = 20
@@ -797,6 +797,7 @@ def main(train_file, predict_file=None, do_train=True, do_predict=False):
     num_train_optimization_steps = None
     if do_train:
         train_examples = read_squad_examples(input_file=train_file, is_training=True)
+        print(f'train examples loaded')
         num_train_optimization_steps = int(len(train_examples) / train_batch_size / gradient_accumulation_steps) * num_train_epochs
         # if local_rank != -1:
         #     num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
@@ -809,6 +810,8 @@ def main(train_file, predict_file=None, do_train=True, do_predict=False):
 
     model = ModelA()
     model.to(device)
+    print('model initialized')
+
     # if n_gpu > 1:
     #     model = torch.nn.DataParallel(model)
 
@@ -820,7 +823,7 @@ def main(train_file, predict_file=None, do_train=True, do_predict=False):
         {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
     optimizer = AdamW(optimizer_grouped_parameters, lr=learning_rate, correct_bias=False)
-
+    print('optimizer set up done')
     global_step = 0
     tbx = SummaryWriter(output_dir)
     if do_train:
@@ -972,3 +975,6 @@ def main(train_file, predict_file=None, do_train=True, do_predict=False):
                           do_lower_case, output_prediction_file,
                           output_nbest_file, output_null_log_odds_file, verbose_logging, null_score_diff_threshold)
 
+
+
+run_model(train_file='./data/train.json', predict_file='./data/eval.json', do_train=True, do_predict='False')
