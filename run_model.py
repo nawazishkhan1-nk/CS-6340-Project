@@ -8,7 +8,7 @@ import pickle
 import utils
 import evaluate as squad_like_evaluate
 from model import *
-from transformers import AutoTokenizer, AutoModel, AutoConfig
+from transformers import AutoTokenizer, AutoModel, AutoConfig, BasicTokenizer
 from transformers.optimization import AdamW
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
@@ -761,10 +761,10 @@ def run_model(train_file, predict_file=None, do_train=True, do_predict=False):
     max_seq_length = 384
     doc_stride = 128
     max_query_length = 64 # For Questions
-    train_batch_size = 12 # TODO: set lower optimum value
-    predict_batch_size = 4 # TODO: set lower
+    train_batch_size = 4 # TODO: set lower optimum value
+    predict_batch_size = 2 # TODO: set lower
     learning_rate = 3e-5
-    num_train_epochs = 3.
+    num_train_epochs = 10
     warmup_proportion  = 0.1
     n_best_size = 20
     max_answer_length = 30
@@ -903,21 +903,23 @@ def run_model(train_file, predict_file=None, do_train=True, do_predict=False):
         output_model_file = os.path.join(output_dir, WEIGHTS_NAME)
         torch.save(model_to_save.state_dict(), output_model_file)
         output_config_file = os.path.join(output_dir, CONFIG_NAME)
+        print(f'config file is {len(output_config_file)} and is {output_config_file}')
         with open(output_config_file, 'w') as f:
-            f.write(model_to_save.config.to_json_string())
+            f.write(model_to_save.bert_model.config.to_json_string())
 
         # Load a trained model and config that you have fine-tuned
         print('loading the trained model')
-        config_ = AutoConfig(output_config_file)
-        model = AutoModel.from_pretrained("bert-base-uncased", config=config_)
+        config_ = AutoConfig.from_pretrained('bert-base-uncased', output_hidden_states=False)
+        model = ModelA()
         model.load_state_dict(torch.load(output_model_file, map_location=device))
 
     else:
         output_model_file = os.path.join(output_dir, WEIGHTS_NAME)
         output_config_file = os.path.join(output_dir, CONFIG_NAME)
         print('loading the trained model in eval mode')
-        config_ = AutoConfig(output_config_file)
-        model = AutoModel.from_pretrained("bert-base-uncased", config=config_)
+        # config_ = AutoConfig(pretrained_model_name_or_path=output_config_file)
+        config_ = AutoConfig.from_pretrained('bert-base-uncased', output_hidden_states=False)
+        model = ModelA()
         model.load_state_dict(torch.load(output_model_file, map_location=device))
 
     model.to(device)
@@ -977,4 +979,4 @@ def run_model(train_file, predict_file=None, do_train=True, do_predict=False):
 
 
 
-run_model(train_file='./data/train.json', predict_file='./data/eval.json', do_train=True, do_predict='False')
+run_model(train_file='./data/train.json', predict_file='./data/eval.json', do_train=True, do_predict=True)

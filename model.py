@@ -22,8 +22,9 @@ class ModelA(nn.Module):
         self.batchnorm = nn.BatchNorm1d(d_word)
         self.qa_outputs = nn.Linear(self.default_config.hidden_size, 2)
 
-    def forward(self, encoded_input, start_positions=None, end_positions=None):
-        sequence_output = self.bert_model(**encoded_input)[0]
+    def forward(self, input_ids, token_ids, attention_mask, start_positions=None, end_positions=None):
+        # sequence_output = self.bert_model(**encoded_input)[0]
+        sequence_output = self.bert_model(input_ids, attention_mask=attention_mask, token_type_ids=token_ids)[0]        
         i1 = self.hidden2(self.batchnorm(self.hidden1(sequence_output)))
         logits = self.qa_outputs(i1)
         start_logits, end_logits = logits.split(1, dim=-1)

@@ -95,10 +95,10 @@ def get_question_answer_pairs(path_dir, story_id, context, f_type):
                     continue
                 else:
                     ans_ar.append(ans_dict)
-        if f_type == 'train':
-            cur_dict['answers'] = [ans_ar[0]]
-        else:
-            cur_dict['answers'] = ans_ar
+        # if f_type == 'train':
+        cur_dict['answers'] = [ans_ar[0]]
+        # else:
+        #     cur_dict['answers'] = ans_ar
         if ans_ar[0]['answer_start'] == -1:
              # only 4 such cases, remove for sake of simplicity 521 -> 517 questions finally
             continue
@@ -230,4 +230,3 @@ class CheckpointSaver:
 # train_eval_split('./devset-official')
 # create_data_json('./data/train', 'train')
 # create_data_json('./data/eval', 'eval')
-
